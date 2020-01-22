@@ -200,8 +200,8 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         EGL_NONE, 0, 0, 0,
     };
 
-    EGLSurface surface = eglCreatePbufferSurface(mEglDisplay, config, attributes);
-    eglMakeCurrent(mEglDisplay, surface, surface, context);
+    /*EGLSurface surface = eglCreatePbufferSurface(mEglDisplay, config, attributes);
+    eglMakeCurrent(mEglDisplay, surface, surface, context);*/
 
     run();
     /*try {
