@@ -1,7 +1,3 @@
-use surfman_chains::SwapChains;
-use surfman_chains_api::SwapChainAPI;
-use surfman_chains_api::SwapChainsAPI;
-
 extern "C" {
     fn OutputDebugStringA(s: *const u8);
 }
@@ -127,20 +123,6 @@ fn do_redirect_stdout_stderr() -> Result<(), ()> {
     Ok(())
 }
 
-    /*pub type EGLNativeWindowType = *const libc::c_void;
-    pub type khronos_utime_nanoseconds_t = khronos_uint64_t;
-    pub type khronos_uint64_t = u64;
-    pub type khronos_ssize_t = libc::c_long;
-    pub type EGLint = i32;
-    pub type EGLContext = *const libc::c_void;
-    pub type EGLNativeDisplayType = *const libc::c_void;
-    pub type EGLNativePixmapType = *const libc::c_void;
-    pub type NativeDisplayType = EGLNativeDisplayType;
-    pub type NativePixmapType = EGLNativePixmapType;
-    pub type NativeWindowType = EGLNativeWindowType;*/
-
-//include!(concat!(env!("OUT_DIR"), "/egl_bindings.rs"));
-
 #[no_mangle]
 pub extern "C" fn run() {
     std::panic::set_hook(Box::new(|info| {
@@ -166,19 +148,8 @@ pub extern "C" fn run() {
 
     let _ = do_redirect_stdout_stderr();
 
-    /*let gl_factory = || unsafe {
-        gleam::gl::GlesFns::load_with(|addr| {
-            let addr = std::ffi::CString::new(addr.as_bytes()).unwrap();
-            let addr = addr.as_ptr();
-            let egl = Egl;
-            egl.GetProcAddress(addr) as *const libc::c_void
-        })
-    };*/
-    
     let gl_factory = || panic!();
     
-    //let gl = gl_factory();
-
     let (tx, rx) = webxr_api::channel().unwrap();
     let mut registry = webxr::MainThreadRegistry::new(Box::new(Waker))
         .expect("Failed to create WebXR device registry");
@@ -187,8 +158,8 @@ pub extern "C" fn run() {
     let discovery = webxr::openxr::OpenXrDiscovery::new(std::sync::Arc::new(gl_factory));
     registry.register(discovery);
 
-    let webxr_swap_chains = SwapChains::new();
-    registry.set_swap_chains(webxr_swap_chains.clone());
+    //let webxr_swap_chains = SwapChains::new();
+    //registry.set_swap_chains(webxr_swap_chains.clone());
         
     debug("registered");
 
@@ -203,29 +174,14 @@ pub extern "C" fn run() {
     let mut session = rx.recv().unwrap().expect("request session failed");
     debug("got session");
 
-    /*let (mut device, mut context) = unsafe {
-        surfman::Device::from_current_context().expect("couldn't create surfman device")
-    };
-    let id = webxr_api::SwapChainId::new();
-    webxr_swap_chains.create_detached_swap_chain(
-        id, session.recommended_framebuffer_resolution().cast_unit(), &mut device, &mut context, surfman::SurfaceAccess::GPUOnly,
-    ).unwrap();
-    session.set_swap_chain(Some(id));*/
-
     session.start_render_loop();
     
     debug("waiting for first frame");
     while let Ok(_frame) = raf_receiver.recv() {
         debug("received frame");
-        /*let swap_chain = webxr_swap_chains.get(id).unwrap();
-        swap_chain.swap_buffers(&mut device, &mut context).unwrap();*/
         session.render_animation_frame();
         debug("rendering frame");
     }
-    /*while let Ok(()) = rx.recv() {
-        registry.run_one_frame
-    }*/
-
     debug("done running");
 }
 
