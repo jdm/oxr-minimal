@@ -12,20 +12,13 @@ test = false
 bench = false
 
 [dependencies]
-webxr = { git = "https://github.com/servo/webxr", features = ["openxr-api"] }
-webxr-api = { git = "https://github.com/servo/webxr", features = ["ipc"] }
 surfman = { version = "0.1", features = ["sm-no-wgl"] }
-winapi = { version = "0.3", features = ["wingdi", "winuser", "winnt", "winbase", "processenv", "namedpipeapi", "ntdef", "minwindef", "handleapi", "debugapi"] }
+winapi = { version = "0.3", features = ["winbase", "debugapi", "namedpipeapi"] }
 libc = "*"
 stderrlog = "*"
-
-#[build-dependencies]
-#gl_generator = "*"
-
-[patch."https://github.com/servo/webxr"]
-webxr = { path = "../../webxr/webxr" }
-webxr-api = { path = "../../webxr/webxr-api" }
+openxr = "*"
+euclid = "*"
+wio = "*"
 
 [patch.crates-io]
-ipc-channel = { path = "../../ipc-channel" }
 winapi = { git = "https://github.com/servo/winapi-rs", branch = "patch-1" }
