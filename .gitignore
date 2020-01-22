@@ -1,0 +1,7 @@
+.vs/
+ARM64/
+x64/
+samples/BasicXrApp/.vs
+samples/BasicXrApp/ARM64
+samples/BasicXrApp/x64
+packages/
