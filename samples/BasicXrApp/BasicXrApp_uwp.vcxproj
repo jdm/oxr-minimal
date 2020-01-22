@@ -171,7 +171,6 @@
     <Import Project="$(VSINSTALLDIR)\Common7\IDE\Extensions\Microsoft\VsGraphics\MeshContentTask.targets" />
     <Import Project="$(VSINSTALLDIR)\Common7\IDE\Extensions\Microsoft\VsGraphics\ShaderGraphContentTask.targets" />
     <Import Project="..\..\packages\OpenXR.Loader.1.0.2.1\build\native\OpenXR.Loader.targets" Condition="Exists('..\..\packages\OpenXR.Loader.1.0.2.1\build\native\OpenXR.Loader.targets')" />
-    <Import Project="..\..\packages\ANGLE.WindowsStore.Servo.2.1.18\build\native\ANGLE.WindowsStore.Servo.targets" Condition="Exists('..\..\packages\ANGLE.WindowsStore.Servo.2.1.18\build\native\ANGLE.WindowsStore.Servo.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
@@ -179,6 +178,5 @@
     </PropertyGroup>
     <Error Condition="!Exists('..\..\packages\OpenXR.Loader.1.0.2.1\build\native\OpenXR.Loader.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\OpenXR.Loader.1.0.2.1\build\native\OpenXR.Loader.props'))" />
     <Error Condition="!Exists('..\..\packages\OpenXR.Loader.1.0.2.1\build\native\OpenXR.Loader.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\OpenXR.Loader.1.0.2.1\build\native\OpenXR.Loader.targets'))" />
-    <Error Condition="!Exists('..\..\packages\ANGLE.WindowsStore.Servo.2.1.18\build\native\ANGLE.WindowsStore.Servo.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\ANGLE.WindowsStore.Servo.2.1.18\build\native\ANGLE.WindowsStore.Servo.targets'))" />
   </Target>
 </Project>
