@@ -15,7 +15,7 @@ bench = false
 surfman = { version = "0.1", features = ["sm-no-wgl"] }
 winapi = { version = "0.3", features = ["winbase", "debugapi", "namedpipeapi"] }
 libc = "*"
-stderrlog = "*"
+#stderrlog = "*"
 openxr = "*"
 euclid = "*"
 wio = "*"

@@ -136,7 +136,9 @@ pub extern "C" fn run() {
         };
     }));
     
-    stderrlog::StdErrLog::new().modules(&["webxr".to_string(), "webxr-api".to_string(), "webxr_api".to_string()]).verbosity(99).color(stderrlog::ColorChoice::Never).init().unwrap();
+    /*stderrlog::StdErrLog::new().modules(
+        &["webxr".to_string(), "webxr-api".to_string(), "webxr_api".to_string()]
+    ).verbosity(99).color(stderrlog::ColorChoice::Never).init().unwrap();*/
     
     debug("running");
 
@@ -308,10 +310,6 @@ fn run2(entry: &Entry) {
 
     // XXXPaul initialisation should happen on SessionStateChanged(Ready)?
 
-    session
-        .begin(ViewConfigurationType::PRIMARY_STEREO)
-        .unwrap();
-
     let pose = Posef {
         orientation: Quaternionf {
             x: 0.,
@@ -349,7 +347,7 @@ fn run2(entry: &Entry) {
     };
 
     // Obtain view info
-    let _frame_state = frame_waiter.wait().expect("error waiting for frame");
+    //let _frame_state = frame_waiter.wait().expect("error waiting for frame");
 
     // Create swapchains
 
@@ -373,9 +371,11 @@ fn run2(entry: &Entry) {
     let left_images = left_swapchain.enumerate_images().unwrap();
     let mut right_swapchain = session.create_swapchain(&swapchain_create_info).unwrap();
     let right_images = right_swapchain.enumerate_images().unwrap();
+    
+    let mut state = State::NotReady;
 
     while let Some((frame_state, views)) = wait_for_animation_frame(
-        &instance, &session, &mut frame_waiter, &mut frame_stream, &viewer_space, &space,
+        &instance, &session, &mut frame_waiter, &mut frame_stream, &viewer_space, &space, &mut state,
     ) {
         render_animation_frame(
             &mut left_swapchain,
@@ -396,33 +396,42 @@ fn run2(entry: &Entry) {
     }
 }
 
-fn handle_openxr_events(instance: &Instance) -> bool {
+#[derive(Copy, Clone, PartialEq)]
+enum State {
+    NotReady,
+    Ready,
+    ShutDown,
+}
+
+fn handle_openxr_events(instance: &Instance, mut state: State) -> State {
     use openxr::Event::*;
     loop {
         let mut buffer = openxr::EventDataBuffer::new();
+        println!("polling");
         let event = instance.poll_event(&mut buffer).unwrap();
+        println!("poll result: {}", event.is_some());
         match event {
             Some(SessionStateChanged(session_change)) => match session_change.state() {
                 openxr::SessionState::EXITING | openxr::SessionState::LOSS_PENDING => {
-                    break;
+                    return State::ShutDown;
                 }
+                openxr::SessionState::READY => state = State::Ready,
                 _ => {
                     // FIXME: Handle other states
                 }
             },
             Some(InstanceLossPending(_)) => {
-                break;
+                return State::ShutDown;
             }
             Some(_) => {
                 // FIXME: Handle other events
             }
             None => {
                 // No more events to process
-                break;
+                return state;
             }
         }
     }
-    true
 }
 
 fn wait_for_animation_frame(
@@ -432,12 +441,23 @@ fn wait_for_animation_frame(
     frame_stream: &mut FrameStream<D3D11>,
     viewer_space: &Space,
     space: &Space,
+    state: &mut State,
 ) -> Option<(FrameState, Vec<openxr::View>)> {
     let frame_state = loop {
-        if !handle_openxr_events(instance) {
+        let old_state = *state;
+        *state = handle_openxr_events(instance, old_state);
+        if *state == State::ShutDown {
             // Session is not running anymore.
             return None;
         }
+
+        if *state == State::NotReady {
+            std::thread::sleep(std::time::Duration::from_millis(250));
+            continue;
+        } else if old_state == State::NotReady && *state == State::Ready {
+            session.begin(ViewConfigurationType::PRIMARY_STEREO).unwrap();
+        }
+
         let frame_state = frame_waiter.wait().expect("error waiting for frame");
 
         frame_stream
@@ -445,9 +465,10 @@ fn wait_for_animation_frame(
             .expect("failed to start frame stream");
             
         if frame_state.should_render {
+            println!("rendering this frame");
             break frame_state;
         }
-        
+        println!("not rendering this frame");
         frame_stream.end(
             frame_state.predicted_display_time,
             EnvironmentBlendMode::ADDITIVE,
@@ -521,6 +542,7 @@ fn render_animation_frame(
         SysMemSlicePitch: byte_len as u32,
     };
     let mut d3dtex_ptr = ptr::null_mut();
+    println!("creating solid texture");
     let hr = unsafe { d3d11_device.CreateTexture2D(&texture_desc, &init, &mut d3dtex_ptr) };
     let solid_texture = unsafe { ComPtr::from_raw(d3dtex_ptr) };
     let solid_resource = solid_texture.up::<d3d11::ID3D11Resource>();
@@ -534,9 +556,11 @@ fn render_animation_frame(
         mem::forget(left_resource.clone());
         let right_resource = ComPtr::from_raw(right_image).up::<d3d11::ID3D11Resource>();
         mem::forget(right_resource.clone());
+        println!("copying solid texture");
         device_context.CopyResource(left_resource.as_raw(), solid_resource.as_raw());
         device_context.CopyResource(right_resource.as_raw(), solid_resource.as_raw());
         device_context.Flush();
+        println!("flushed");
     
         let texture_desc = d3d11::D3D11_TEXTURE2D_DESC {
             Width: (width / 2) as u32,
@@ -559,11 +583,13 @@ fn render_animation_frame(
             SysMemPitch: (width / 2) as u32 * mem::size_of::<u32>() as u32,
             SysMemSlicePitch: byte_len as u32,
         };
+        println!("creating mapped texture");
         let hr = d3d11_device.CreateTexture2D(&texture_desc, &init, &mut d3dtex_ptr);
         assert_eq!(hr, S_OK);
         let solid_texture = ComPtr::from_raw(d3dtex_ptr);
         let solid_resource = solid_texture.up::<d3d11::ID3D11Resource>();
         device_context.CopyResource(solid_resource.as_raw(), left_resource.as_raw());
+        println!("copied mapped texture");
         
         let mut mapped = d3d11::D3D11_MAPPED_SUBRESOURCE {
             pData: ptr::null_mut(),
@@ -573,11 +599,13 @@ fn render_animation_frame(
         
         let hr = device_context.Map(solid_resource.as_raw(), 0, d3d11::D3D11_MAP_READ, 0, &mut mapped);
         assert_eq!(hr, S_OK);
+        println!("finished mapped texture");
         assert_eq!(*(mapped.pData as *const u32), 0xFFFFFFFF);
     }
     
     left_swapchain.release_image().unwrap();
     right_swapchain.release_image().unwrap();
+    println!("ending the frame");
     frame_stream
         .end(
             frame_state.predicted_display_time,
@@ -614,4 +642,5 @@ fn render_animation_frame(
                 ])],
         )
         .unwrap();
+        println!("ended");
 }
